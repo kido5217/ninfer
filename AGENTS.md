@@ -156,6 +156,9 @@ only when that work is in scope. Install or upgrade dependencies only when the t
 Create commits only when requested. Use Conventional Commit subjects with concise lowercase types
 such as `feat`, `fix`, `perf`, `bench`, `test`, `build`, `refactor`, `docs`, or `chore`.
 
+Create a new branch before making any change to the codebase, and land the work on `master` through
+a pull request. `master` stays clean: merged work only, no uncommitted changes.
+
 ## Agent skills
 
 ### Issue tracker
