@@ -247,6 +247,23 @@ PARITY_CONTEXTS = [
         add_generation_prompt=True,
         add_vision_id=True,
     ),
+    # Froggeric's documented effort aliases must reach the template verbatim.
+    dict(
+        messages=[message("user", "hello")],
+        add_generation_prompt=True,
+        reasoning_effort="ultracode",
+    ),
+    dict(
+        messages=[message("user", "hello")],
+        add_generation_prompt=True,
+        reasoning_effort="off",
+    ),
+    dict(
+        messages=[message("user", "hello")],
+        add_generation_prompt=True,
+        reasoning_effort="extreme",
+        preserve_reasoning=False,
+    ),
 ]
 
 

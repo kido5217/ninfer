@@ -974,6 +974,49 @@ int test_selected_template_recovery_boundary() {
     return failures;
 }
 
+int test_template_parameter_pass_through() {
+    const auto compiled = fi::CompiledChatTemplate::resolve(
+        "<|im_start|>{{ messages[0].role }}\n"
+        "{{ reasoning_effort }}|{{ enable_thinking }}|{{ preserve_reasoning }}|"
+        "{{ preserve_thinking }}<|im_end|>\n",
+        "parameter-test.jinja");
+    const std::vector<fi::ChatMessage> messages{chat_message(ninfer::ChatRole::User, "hi")};
+    const auto render = [&](std::string kwargs) {
+        fi::ChatRenderOptions options;
+        options.chat_template_kwargs_json = std::move(kwargs);
+        return compiled.render(messages, options).text;
+    };
+
+    int failures = check(render(R"({"reasoning_effort":"off"})").find("off|") != std::string::npos,
+                         "external template's effort alias was rejected before rendering");
+    failures +=
+        check(render(R"({"reasoning_effort":"ultracode"})").find("ultracode|") != std::string::npos,
+              "template-defined effort value did not reach the template verbatim");
+    failures +=
+        check(render(R"({"reasoning_effort":"none"})").find("none|False|") != std::string::npos,
+              "reasoning_effort 'none' did not disable thinking");
+    failures += check(
+        render(R"({"enable_thinking":false,"reasoning_effort":"high"})").find("high|False|") !=
+            std::string::npos,
+        "effort with disabled thinking was rejected instead of passing to the template");
+    failures += check(throws_invalid_argument([&] { (void)render(R"({"reasoning_effort":3})"); }),
+                      "non-string reasoning_effort was accepted");
+
+    fi::ChatRenderOptions preserve;
+    preserve.preserve_thinking         = true;
+    preserve.chat_template_kwargs_json = R"({"preserve_reasoning":false})";
+    failures +=
+        check(compiled.render(messages, preserve).text.find("||False|True") != std::string::npos,
+              "preserve_reasoning and preserve_thinking did not pass through independently");
+
+    fi::ChatRenderOptions duplicated;
+    duplicated.reasoning_effort          = ninfer::ReasoningEffort::Medium;
+    duplicated.chat_template_kwargs_json = R"({"reasoning_effort":"off"})";
+    failures += check(throws_invalid_argument([&] { (void)compiled.render(messages, duplicated); }),
+                      "disagreeing typed and keyword reasoning_effort was accepted");
+    return failures;
+}
+
 int test_adjacent_tool_message_boundary() {
     fi::ChatMessage assistant = chat_message(ninfer::ChatRole::Assistant, "");
     assistant.tool_calls.push_back(
@@ -2175,6 +2218,7 @@ int main() {
     failures += test_adjacent_tool_message_boundary();
     failures += test_literal_cache_boundary();
     failures += test_selected_template_recovery_boundary();
+    failures += test_template_parameter_pass_through();
     failures += test_official_resource_guards();
     failures += test_template_file_execution();
     failures += test_invalid_public_part_enums(frontend);

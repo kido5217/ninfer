@@ -1,6 +1,8 @@
 #include "serve/serve_options.h"
 #include "serve/translate.h"
 
+#include <nlohmann/json.hpp>
+
 #include <iostream>
 #include <string>
 #include <utility>
@@ -278,6 +280,40 @@ int main() {
                           explicit_effort.enable_thinking == true,
                       "explicit reasoning effort did not remain the effective effort");
     request.reasoning_effort.reset();
+
+    request.enable_thinking                  = false;
+    request.reasoning_effort                 = RequestedReasoningEffort::Low;
+    const auto effort_with_disabled_thinking = resolve_prompt_semantics(request, defaults);
+    failures +=
+        check(effort_with_disabled_thinking.reasoning_effort == ninfer::ReasoningEffort::Low &&
+                  effort_with_disabled_thinking.enable_thinking == false,
+              "explicit effort overrode disabled thinking");
+    request.enable_thinking.reset();
+    request.reasoning_effort.reset();
+
+    request.chat_template_kwargs_json = R"({"reasoning_effort":"off"})";
+    const auto template_effort        = resolve_prompt_semantics(request, defaults);
+    failures += check(!template_effort.reasoning_effort && !template_effort.enable_thinking &&
+                          nlohmann::json::parse(template_effort.chat_template_kwargs_json)
+                                  .at("reasoning_effort") == "off",
+                      "template-defined reasoning effort was not passed through");
+    request.chat_template_kwargs_json = R"({"reasoning_effort":"none"})";
+    const auto canonical_none         = resolve_prompt_semantics(request, defaults);
+    failures += check(canonical_none.reasoning_effort == ninfer::ReasoningEffort::None &&
+                          canonical_none.enable_thinking == false &&
+                          !nlohmann::json::parse(canonical_none.chat_template_kwargs_json)
+                               .contains("reasoning_effort"),
+                      "canonical 'none' did not resolve to disabled thinking");
+    request.chat_template_kwargs_json = R"({"reasoning_effort":"off"})";
+    request.reasoning_effort          = RequestedReasoningEffort::Low;
+    bool template_conflict_rejected   = false;
+    try {
+        (void)resolve_prompt_semantics(request, defaults);
+    } catch (const ApiException&) { template_conflict_rejected = true; }
+    failures += check(template_conflict_rejected,
+                      "typed and template-defined effort disagreement was accepted");
+    request.reasoning_effort.reset();
+    request.chat_template_kwargs_json.clear();
     failures += check(resolve_prompt_semantics(request, configured).preserve_thinking == true,
                       "server preserve-thinking default was not resolved");
     request.preserve_thinking = false;
