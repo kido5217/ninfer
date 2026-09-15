@@ -218,6 +218,41 @@ int literal_content() {
               "engine token variables and ordinary kwargs were not distinguished");
     return failures;
 }
+
+int recursion_limit() {
+    const auto rejected = [](std::string source) {
+        try {
+            (void)JinjaTemplate(std::move(source), "recursion-test").render(Json::object());
+            return false;
+        } catch (const std::invalid_argument& error) {
+            return std::string(error.what()).find("Max recursion depth exceeded") !=
+                   std::string::npos;
+        }
+    };
+    const auto nested_if = [](int depth) {
+        std::string source;
+        for (int i = 0; i < depth; ++i) source += "{% if true %}";
+        source += "deep";
+        for (int i = 0; i < depth; ++i) source += "{% endif %}";
+        return source;
+    };
+    std::string nested_expression = "{{ ";
+    for (int i = 0; i < 110; ++i) nested_expression += "1 + (";
+    nested_expression += "1";
+    for (int i = 0; i < 110; ++i) nested_expression += ")";
+    nested_expression += " }}";
+    int failures =
+        check(JinjaTemplate(nested_if(50), "recursion-test").render(Json::object()).text == "deep",
+              "legitimate nesting was rejected by the recursion limit");
+    failures += check(rejected("{% macro recursive() %}{{ recursive() }}{% endmacro %}"
+                               "{{ recursive() }}"),
+                      "recursive macro did not raise the recursion limit");
+    failures +=
+        check(rejected(nested_if(110)), "nested if statements did not raise the recursion limit");
+    failures +=
+        check(rejected(nested_expression), "nested expressions did not raise the recursion limit");
+    return failures;
+}
 } // namespace
 
 int main(int argc, char** argv) {
@@ -239,7 +274,11 @@ int main(int argc, char** argv) {
         return 0;
     }
     try {
-        return language_semantics() + origins_and_requests() + literal_content() == 0 ? 0 : 1;
+        return language_semantics() + origins_and_requests() + literal_content() +
+                           recursion_limit() ==
+                       0
+                   ? 0
+                   : 1;
     } catch (const std::exception& error) {
         std::cerr << error.what() << '\n';
         return 1;

@@ -41,9 +41,25 @@ static void ensure_key_type_allowed(const value& val) {
     }
 }
 
+// Adopted from ggml-org/llama.cpp#19085. Counts native statement execution so a template that
+// recurses without a base case fails cleanly instead of overflowing the stack.
+struct recursion_guard {
+    context& ctx;
+
+    explicit recursion_guard(context& value) : ctx(value) {
+        if (ctx.recursion_depth >= context::max_recursion_depth) {
+            throw std::runtime_error("Max recursion depth exceeded");
+        }
+        ++ctx.recursion_depth;
+    }
+
+    ~recursion_guard() { --ctx.recursion_depth; }
+};
+
 // execute with error handling
 value statement::execute(context& ctx) {
     if (ctx.checkpoint) ctx.checkpoint();
+    recursion_guard guard(ctx);
     try {
         return execute_impl(ctx);
     } catch (const continue_statement::signal& /* ex */) {
