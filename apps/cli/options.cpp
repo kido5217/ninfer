@@ -224,10 +224,6 @@ Options parse_options(int argc, char** argv) {
         throw std::invalid_argument("--kv-capacity must be at least --max-context");
     }
     product::validate_speculative_cli_options(options.speculative);
-    if (options.enable_thinking == false && options.reasoning_effort &&
-        *options.reasoning_effort != ReasoningEffort::None) {
-        throw std::invalid_argument("--reasoning-effort cannot be combined with --no-thinking");
-    }
     if (options.reasoning_effort == ReasoningEffort::None) options.enable_thinking = false;
     if (options.enable_thinking == false && options.thinking_budget) {
         throw std::invalid_argument("--thinking-budget cannot be combined with --no-thinking");

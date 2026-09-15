@@ -191,9 +191,11 @@ Control-token spellings quoted in message content, tool data or ordinary templat
 encoded as text. Media placeholders come from the template and bind to actual image/video inputs.
 
 `chat_template_kwargs` passes a JSON object to the template in Chat Completions, Responses and
-Anthropic Messages. Values duplicated in typed request fields must agree. Null standard options
-mean unspecified; other null values remain `none`. Messages, tools, generation mode and tokenizer
-special tokens cannot be overridden through kwargs.
+Anthropic Messages. Values duplicated in typed request fields must agree. Standard options are
+type-checked and `reasoning_effort: "none"` requests disabled thinking; every other value passes to
+the selected template unchanged. Null standard options mean unspecified; other null values remain
+`none`. Messages, tools, generation mode and tokenizer special tokens cannot be overridden through
+kwargs.
 
 `--default-thinking-budget N` sets a positive default thinking-token cap for requests that start
 in thinking mode. Non-thinking requests receive no cap. It may coexist with `--no-thinking`
@@ -214,8 +216,8 @@ post-close model token, preparation is rejected with HTTP 400 code
 not promise that the model will emit nonempty content or a tool call after the marker.
 
 For Chat Completions, `reasoning_effort: "none"` requests disabled thinking. The selected template
-interprets the other standard values (`minimal`, `low`, `medium`, `high`, `xhigh`, `max`).
-Conflicting explicit `enable_thinking` and effort values return `conflicting_template_option`.
+interprets every other effort value, including vocabulary it defines itself. An option duplicated
+in a typed field and `chat_template_kwargs` must agree.
 
 `preserve_thinking` controls reasoning retention according to the selected template. Request
 options override server defaults set with `--no-thinking` and `--preserve-thinking`. Unspecified

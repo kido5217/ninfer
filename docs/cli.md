@@ -47,9 +47,8 @@ Changes to the file take effect after restarting NInfer:
 ```
 
 Omitted thinking and effort options use the selected template's defaults. `--no-thinking` or
-`--reasoning-effort none` requests disabled thinking; other effort values cannot be combined with
-`--no-thinking`. The template interprets the selected effort. `--greedy` selects exact argmax
-decoding independently.
+`--reasoning-effort none` requests disabled thinking; the template interprets every other selected
+effort. `--greedy` selects exact argmax decoding independently.
 
 `--thinking-budget N` places a positive upper bound on accepted model-origin tokens while the
 new-turn Qwen thinking block remains open. If the model has not emitted `</think>` at that exact

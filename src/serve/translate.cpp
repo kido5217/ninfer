@@ -139,17 +139,21 @@ ResolvedPromptSemantics resolve_prompt_semantics(const GenerationRequest& reques
         if (!kwargs["reasoning_effort"].is_string())
             invalid_prompt_option("reasoning_effort must be a string", "reasoning_effort",
                                   "invalid_template_option");
-        const auto nested =
-            parse_requested_reasoning_effort(kwargs["reasoning_effort"].get<std::string>());
-        if (!nested)
-            invalid_prompt_option("invalid reasoning_effort", "reasoning_effort",
-                                  "invalid_template_option");
-        if (effort && effort != nested)
+        const std::string nested = kwargs["reasoning_effort"].get<std::string>();
+        const auto canonical     = parse_requested_reasoning_effort(nested);
+        if (canonical) {
+            if (effort && effort != canonical)
+                invalid_prompt_option("conflicting reasoning_effort values", "reasoning_effort",
+                                      "conflicting_template_option");
+            effort = canonical;
+            kwargs.erase("reasoning_effort");
+        } else if (effort) {
+            // A typed effort cannot agree with a value only the selected template understands.
             invalid_prompt_option("conflicting reasoning_effort values", "reasoning_effort",
                                   "conflicting_template_option");
-        effort = nested;
+        }
+        // Other values stay in the kwargs and reach the selected template unchanged.
     }
-    kwargs.erase("reasoning_effort");
     ResolvedPromptSemantics result{
         .enable_thinking           = thinking ? thinking : server.enable_thinking,
         .preserve_thinking         = preserve ? preserve : server.preserve_thinking,
@@ -157,11 +161,12 @@ ResolvedPromptSemantics resolve_prompt_semantics(const GenerationRequest& reques
     };
     if (effort) {
         const bool enables = *effort != RequestedReasoningEffort::None;
-        if (thinking && *thinking != enables)
-            invalid_prompt_option("reasoning effort conflicts with enable_thinking",
-                                  "reasoning_effort", "conflicting_template_option");
-        // A request effort overrides the server's thinking default.
-        result.enable_thinking = enables;
+        // 'none' is the canonical disable. Another typed effort selects the thinking state only
+        // when the request did not choose one; a template-defined value never reaches this block.
+        if (!enables)
+            result.enable_thinking = false;
+        else if (!thinking)
+            result.enable_thinking = true;
         switch (*effort) {
         case RequestedReasoningEffort::None:
             result.reasoning_effort = ninfer::ReasoningEffort::None;

@@ -82,17 +82,12 @@ Json template_parameters(const ChatRenderOptions& options, const Json& special_t
     }
     if (context.contains("reasoning_effort")) {
         const auto& effort = context["reasoning_effort"];
-        if (!effort.is_string() ||
-            (effort != "none" && effort != "minimal" && effort != "low" && effort != "medium" &&
-             effort != "high" && effort != "xhigh" && effort != "max")) {
-            throw std::invalid_argument("invalid reasoning_effort template parameter");
+        if (!effort.is_string()) {
+            throw std::invalid_argument("reasoning_effort template parameter must be a string");
         }
-        const bool thinking = effort != "none";
-        if (context.contains("enable_thinking") && context["enable_thinking"] != thinking) {
-            throw std::invalid_argument("reasoning_effort conflicts with enable_thinking");
-        }
-        // The protocol's 'none' is an explicit disable. Other efforts retain template defaults.
-        if (!thinking) context["enable_thinking"] = false;
+        // 'none' is NInfer's canonical disabled value. Every other value is template data: the
+        // selected template resolves its own effort vocabulary (including external aliases).
+        if (effort == "none") context["enable_thinking"] = false;
     }
     context.update(special_tokens);
     return context;

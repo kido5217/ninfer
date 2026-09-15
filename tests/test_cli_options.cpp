@@ -54,6 +54,12 @@ int main() {
                "--reasoning-effort", "medium"});
     failures += check(with_effort.thinking_budget == 8 && with_effort.reasoning_effort,
                       "thinking budget did not coexist with reasoning effort");
+    const ninfer::cli::Options effort_without_thinking =
+        parse({"ninfer-cli", "model.ninfer", "--prompt", "hello", "--no-thinking",
+               "--reasoning-effort", "high"});
+    failures += check(effort_without_thinking.enable_thinking == false &&
+                          effort_without_thinking.reasoning_effort == ninfer::ReasoningEffort::High,
+                      "--no-thinking did not coexist with a template-interpreted effort");
     const ninfer::cli::Options dflash_vision =
         parse({"ninfer-cli", "model.ninfer", "--prompt", "hello", "--vision", "--spec", "dflash",
                "--draft-tokens", "7"});
