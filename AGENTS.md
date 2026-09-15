@@ -155,3 +155,17 @@ only when that work is in scope. Install or upgrade dependencies only when the t
 
 Create commits only when requested. Use Conventional Commit subjects with concise lowercase types
 such as `feat`, `fix`, `perf`, `bench`, `test`, `build`, `refactor`, `docs`, or `chore`.
+
+## Agent skills
+
+### Issue tracker
+
+Issues and specs live as GitHub issues in `kido5217/ninfer`. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Five canonical triage labels, using the default names. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: one `CONTEXT.md` and `docs/adr/` at the repo root. See `docs/agents/domain.md`.
