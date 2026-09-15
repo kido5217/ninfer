@@ -60,6 +60,11 @@ struct context {
 
     visitor_fn visitor;
 
+    // Adopted from ggml-org/llama.cpp#19085: a pathological template (for example a recursive
+    // macro) must fail with a template error instead of overflowing the native stack.
+    int recursion_depth                      = 0;
+    static constexpr int max_recursion_depth = 100;
+
     // src is optional, used for error reporting
     context(std::string src = "") : src(std::make_shared<std::string>(std::move(src))) {
         env               = mk_val<value_object>();
@@ -92,6 +97,7 @@ struct context {
         checkpoint      = caller.checkpoint;
         src             = caller.src;
         captured_scopes = caller.captured_scopes;
+        recursion_depth = caller.recursion_depth;
     }
 
     context(const context& parent) : context() {
@@ -102,6 +108,7 @@ struct context {
         checkpoint      = parent.checkpoint;
         src             = parent.src;
         captured_scopes = parent.captured_scopes;
+        recursion_depth = parent.recursion_depth;
     }
 
     value get_val(const std::string& name) {
