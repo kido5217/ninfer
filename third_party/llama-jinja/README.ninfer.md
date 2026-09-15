@@ -15,6 +15,13 @@ NInfer maintains this fork for chat-template rendering and adopts upstream fixes
   the process. The upstream PR was still open (unmerged) when NInfer adopted it; re-check it
   when syncing this fork.
 
+## Fork-local changes
+
+- Parser recursion bound (kido5217/ninfer#15): `parser::depth_guard` / `k_max_depth` in
+  `jinja/parser.cpp` rejects deeply nested template source with
+  `Parser Error: Max recursion depth exceeded`. Upstream has no equivalent, so keep this guard
+  when syncing.
+
 Unicode case data is generated from Unicode 17.0.0 `SpecialCasing.txt` and
 `DerivedCoreProperties.txt`, under [UNICODE-LICENSE](UNICODE-LICENSE):
 

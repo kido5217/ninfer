@@ -87,7 +87,32 @@ private:
         return std::find(names.begin(), names.end(), val) != names.end();
     }
 
+    // Fork-local bound on recursive-descent depth: template source is untrusted, so pathological
+    // nesting must fail as a template error instead of overflowing the native stack. Every
+    // recursive cycle in the grammar passes through at least one guarded entry point
+    // (parse_any, parse_if_statement, parse_expression, parse_if_expression,
+    // parse_logical_negation_expression, parse_call_expression), and one nesting level costs one
+    // or two depth units.
+    static constexpr std::size_t k_max_depth = 1000;
+
+    std::size_t depth = 0;
+
+    struct depth_guard {
+        parser& self;
+
+        explicit depth_guard(parser& value) : self(value) {
+            if (self.depth >= k_max_depth) {
+                throw parser_exception("Parser Error: Max recursion depth exceeded", self.source,
+                                       self.peek().pos);
+            }
+            ++self.depth;
+        }
+
+        ~depth_guard() { --self.depth; }
+    };
+
     statement_ptr parse_any() {
+        depth_guard guard(*this);
         size_t start_pos = current;
         switch (peek().t) {
         case token::comment:
@@ -229,6 +254,7 @@ private:
     }
 
     statement_ptr parse_if_statement(size_t start_pos) {
+        depth_guard guard(*this);
         auto test = parse_expression();
         expect(token::close_statement, "Expected %}");
 
@@ -305,11 +331,13 @@ private:
     }
 
     statement_ptr parse_expression() {
+        depth_guard guard(*this);
         // Choose parse function with lowest precedence
         return parse_if_expression();
     }
 
     statement_ptr parse_if_expression() {
+        depth_guard guard(*this);
         auto a = parse_logical_or_expression();
         if (is_identifier("if")) {
             // Ternary expression
@@ -354,6 +382,7 @@ private:
     }
 
     statement_ptr parse_logical_negation_expression() {
+        depth_guard guard(*this);
         // Try parse unary operators
         if (is_identifier("not")) {
             size_t start_pos = current;
@@ -448,6 +477,7 @@ private:
     }
 
     statement_ptr parse_call_expression(statement_ptr callee) {
+        depth_guard guard(*this);
         size_t start_pos = current;
         auto expr        = mk_stmt<call_expression>(start_pos, std::move(callee), parse_args());
         auto member      = parse_member_expression(std::move(expr));            // foo.x().y
