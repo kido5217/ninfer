@@ -241,9 +241,26 @@ int recursion_limit() {
     nested_expression += "1";
     for (int i = 0; i < 110; ++i) nested_expression += ")";
     nested_expression += " }}";
+    const auto nested_parens = [](int depth) {
+        std::string source = "{{ ";
+        source.append(static_cast<std::size_t>(depth), '(');
+        source += "1";
+        source.append(static_cast<std::size_t>(depth), ')');
+        source += " }}";
+        return source;
+    };
+    const auto chained_not = [](int depth) {
+        std::string source = "{{ ";
+        for (int i = 0; i < depth; ++i) source += "not ";
+        source += "true }}";
+        return source;
+    };
     int failures =
         check(JinjaTemplate(nested_if(50), "recursion-test").render(Json::object()).text == "deep",
               "legitimate nesting was rejected by the recursion limit");
+    failures += check(
+        JinjaTemplate(nested_parens(100), "recursion-test").render(Json::object()).text == "1",
+        "legitimate parenthesized nesting was rejected by the parser limit");
     failures += check(rejected("{% macro recursive() %}{{ recursive() }}{% endmacro %}"
                                "{{ recursive() }}"),
                       "recursive macro did not raise the recursion limit");
@@ -251,6 +268,12 @@ int recursion_limit() {
         check(rejected(nested_if(110)), "nested if statements did not raise the recursion limit");
     failures +=
         check(rejected(nested_expression), "nested expressions did not raise the recursion limit");
+    failures += check(rejected(nested_parens(5000)),
+                      "deeply nested parentheses did not raise the parser recursion limit");
+    failures += check(rejected(nested_if(5000)),
+                      "deeply nested if blocks did not raise the parser recursion limit");
+    failures += check(rejected(chained_not(5000)),
+                      "a unary chain did not raise the parser recursion limit");
     return failures;
 }
 } // namespace
