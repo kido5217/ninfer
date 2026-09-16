@@ -37,8 +37,20 @@ int q4_a16_conformance() {
     failures += run_shape("Q4_A16", ActivationCompute::A16, make_q4_g64_fp16_weight,
                           {1024, 5120, 101U, Comparison::Sampled, false, kN1024K5120Bulk});
 
+    // Full-output oracle covers every mechanism this geometry selects, the capacity tails, and the
+    // column-tile boundaries the selector switches on.
+    constexpr std::array kN4096K5120Full{
+        a16(1),  graph(4),  graph(8),  graph(13), graph(16), graph(17), graph(24),
+        graph(25), graph(32), graph(33), graph(48), graph(64), graph(65), graph(128),
+    };
+    failures += run_shape("Q4_A16", ActivationCompute::A16, make_q4_g64_fp16_weight,
+                          {4096, 5120, 103U, Comparison::Full, true, kN4096K5120Full});
+
     constexpr std::array kN4096K5120{
-        a16(1), a16(2), a16(3), a16(4), a16(5), a16(6), a16(8), a16(16), a16(17), a16(18), a16(128),
+        a16(2),  a16(3),      a16(5),   a16(6),      a16(7),   a16(9),     a16(12),   a16(15),
+        a16(20), a16(23),     a16(28),  a16(31),     a16(40),  a16(56),    a16(63),   a16(72),
+        a16(96), graph(97),   a16(112), graph(192),  a16(289), a16(320),   graph(321), a16(511),
+        graph(512), a16(513), a16(1023), graph(1024),
     };
     failures += run_shape("Q4_A16", ActivationCompute::A16, make_q4_g64_fp16_weight,
                           {4096, 5120, 103U, Comparison::Sampled, false, kN4096K5120});
