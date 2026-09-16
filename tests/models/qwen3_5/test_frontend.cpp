@@ -366,6 +366,16 @@ bool throws_invalid_argument(Callable&& callable) {
     return false;
 }
 
+template <class Callable>
+bool throws_invalid_argument_with(Callable&& callable, std::string_view fragment) {
+    try {
+        callable();
+    } catch (const std::invalid_argument& error) {
+        return std::string_view(error.what()).find(fragment) != std::string_view::npos;
+    }
+    return false;
+}
+
 int test_invalid_public_part_enums(const Frontend& frontend) {
     ninfer::ChatMessage invalid_part_message;
     invalid_part_message.role = ninfer::ChatRole::User;
@@ -1340,9 +1350,33 @@ int test_template_media_contract() {
         make_frontend(resources("{% for m in messages %}{{ m.role }}{% endfor %}"));
     failures += check(throws_invalid_argument([&] { (void)missing.prepare(image_input()); }),
                       "a template that omits an input image was accepted");
+    failures += check(
+        throws_invalid_argument_with([&] { (void)missing.prepare(image_input()); },
+                                     "declares 0 media placeholders but the request has 1 media "
+                                     "inputs"),
+        "the omitted-placeholder error did not account for the request's media inputs");
     const auto wrong_type = make_frontend(resources("<|vision_start|><|video_pad|><|vision_end|>"));
     failures += check(throws_invalid_argument([&] { (void)wrong_type.prepare(image_input()); }),
                       "template media type mismatch was accepted");
+    failures +=
+        check(throws_invalid_argument_with([&] { (void)wrong_type.prepare(image_input()); },
+                                           "expects video input but the request supplies image"),
+              "the media type-mismatch error did not name the placeholder and the supplied type");
+    const auto bare_inside_message = make_frontend(resources(
+        "{% for m in messages %}<|im_start|>{{ m.role }}\n<|image_pad|><|im_end|>\n{% endfor %}"));
+    failures +=
+        check(throws_invalid_argument_with(
+                  [&] {
+                      ninfer::PromptInput text;
+                      ninfer::ChatMessage message;
+                      message.role = ninfer::ChatRole::User;
+                      message.parts.push_back(ninfer::MessagePart{
+                          .kind = ninfer::MessagePartKind::Text, .text = "hi", .media = {}});
+                      text.messages.push_back(std::move(message));
+                      (void)bare_inside_message.prepare(text);
+                  },
+                  "(message user[0])"),
+              "the media wrapper error did not name the owning message");
     const auto frontend = make_frontend(resources());
     auto input          = image_input();
     const ninfer::MessagePart quoted{
