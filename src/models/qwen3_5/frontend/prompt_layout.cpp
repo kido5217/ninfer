@@ -24,6 +24,22 @@ std::size_t find_marker(const text::TemplateOutput& output, std::string_view mar
     return std::string::npos;
 }
 
+std::string_view modality_name(Modality modality) {
+    return modality == Modality::Image ? "image" : "video";
+}
+
+// Names the message owning a rendered byte offset when the layout already identifies one.
+std::string media_owner(const PromptLayout& layout, std::size_t pos) {
+    for (std::size_t index = 0; index < layout.messages.size(); ++index) {
+        const auto& message = layout.messages[index];
+        if (pos >= message.content_begin && pos < message.content_end) {
+            return " (message " + std::string(chat_role_name(message.role)) + "[" +
+                   std::to_string(index) + "])";
+        }
+    }
+    return {};
+}
+
 } // namespace
 
 std::optional<text::ByteSpan> unique_output_region(const text::TemplateOutput& output,
@@ -128,18 +144,30 @@ PromptLayout inspect_prompt_layout(const text::TemplateOutput& output,
             !template_bytes(output, pad - kVisionStart.size(),
                             pad + token.size() + kVisionEnd.size())) {
             throw std::invalid_argument(
-                "chat template media pad requires a complete Qwen vision wrapper");
+                "chat template media pad requires a complete Qwen vision wrapper" +
+                media_owner(result, pad));
         }
         const auto index = result.media_placeholders.size();
-        if (index >= media.size() || media[index] != modality) {
+        if (index >= media.size()) {
             throw std::invalid_argument(
-                "chat template media placeholders must match input count, type and order");
+                "chat template declares media placeholder " + std::to_string(index) + " (" +
+                std::string(modality_name(modality)) + ") but the request has " +
+                std::to_string(media.size()) + " media inputs" + media_owner(result, pad));
+        }
+        if (media[index] != modality) {
+            throw std::invalid_argument(
+                "chat template media placeholder " + std::to_string(index) + " expects " +
+                std::string(modality_name(modality)) + " input but the request supplies " +
+                std::string(modality_name(media[index])) + media_owner(result, pad));
         }
         result.media_placeholders.push_back({{pad, pad + token.size()}, modality, index});
         pos = pad + token.size();
     }
     if (result.media_placeholders.size() != media.size()) {
-        throw std::invalid_argument("chat template omitted an input media placeholder");
+        throw std::invalid_argument("chat template declares " +
+                                    std::to_string(result.media_placeholders.size()) +
+                                    " media placeholders but the request has " +
+                                    std::to_string(media.size()) + " media inputs");
     }
     return result;
 }

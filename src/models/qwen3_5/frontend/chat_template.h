@@ -18,6 +18,8 @@ namespace ninfer::models::qwen3_5::frontend {
 
 inline constexpr std::string_view kCanonicalReasoningCloseSerialization = "\n</think>\n\n";
 
+[[nodiscard]] std::string_view chat_role_name(ChatRole role);
+
 struct ToolCall {
     std::string id;
     std::string name;

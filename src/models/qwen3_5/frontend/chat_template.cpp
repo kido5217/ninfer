@@ -13,22 +13,6 @@ namespace {
 
 using Json = nlohmann::ordered_json;
 
-std::string_view role_name(ChatRole role) {
-    switch (role) {
-    case ChatRole::System:
-        return "system";
-    case ChatRole::Developer:
-        return "developer";
-    case ChatRole::User:
-        return "user";
-    case ChatRole::Assistant:
-        return "assistant";
-    case ChatRole::Tool:
-        return "tool";
-    }
-    throw std::invalid_argument("invalid chat role");
-}
-
 bool instruction(ChatRole role) { return role == ChatRole::System || role == ChatRole::Developer; }
 
 struct ContentSource {
@@ -134,6 +118,22 @@ bool real_user(const ChatMessage& message) {
 
 } // namespace
 
+std::string_view chat_role_name(ChatRole role) {
+    switch (role) {
+    case ChatRole::System:
+        return "system";
+    case ChatRole::Developer:
+        return "developer";
+    case ChatRole::User:
+        return "user";
+    case ChatRole::Assistant:
+        return "assistant";
+    case ChatRole::Tool:
+        return "tool";
+    }
+    throw std::invalid_argument("invalid chat role");
+}
+
 bool ChatMessage::has_media() const noexcept {
     return std::any_of(parts.begin(), parts.end(),
                        [](const ChatPart& part) { return part.kind != ChatPartKind::Text; });
@@ -181,7 +181,7 @@ RenderedChat CompiledChatTemplate::render(const std::vector<ChatMessage>& messag
              !message.tool_calls.empty() || !message.tool_call_id.empty())) {
             throw std::invalid_argument("system and developer messages may contain only text");
         }
-        Json value{{"role", role_name(message.role)}};
+        Json value{{"role", chat_role_name(message.role)}};
         const auto pointer = "/messages/" + std::to_string(i);
         auto& origin       = sources[i];
         if (!message.has_media()) {
